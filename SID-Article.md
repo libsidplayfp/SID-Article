@@ -1,4 +1,4 @@
-# SID-Article v0.2
+# SID-Article v0.3
 
 **_MOS Technology SID soundchip internals and applications on the Commodore 64_**
 
@@ -49,12 +49,12 @@ of the SID chip.
 
 There are many resourceful materials about the SID on the Internet already, but
 it can be very tiresome to dig them all up from different places. There is an
-overall technical document about the graphic chip of the C64 called VIC-article.
-( __TODO__: Add link to VIC-article. ) Surprisingly there hasn't been a similar
-document for the SID - until now. Some of the sources used here was an interview
-Hermit made with Bob Yannes, the source-code comments of Dag Lem's ReSID, the
-ReSID-FP engine, the Kevtris reverse-engineering site, a document about DC
-levels by Levente Hársfalvi, and Hermit's own findings that will be explained
+overall technical document about the graphic chip of the C64 called VIC-article[^1].
+Surprisingly there hasn't been a similar document for the SID - until now.
+Some of the sources used here was an interview Hermit made with Bob Yannes,
+the source-code comments of Dag Lem's ReSID, the ReSID-FP engine,
+the Kevtris reverse-engineering site, a document about DC levels
+by Levente Hársfalvi, and Hermit's own findings that will be explained
 later. So hopefully this document collects sufficient information for you in
 this article in one place to get the big picture.
 
@@ -81,11 +81,13 @@ Both models are nearly equivalent in their digital portions, but the different
 silicon process they are based on (6581:NMOS, 8580:HMOS-II) and the different
 designs result in clear differences how their analog circuits sound like,
 especially in mixing, filter curves, and with combined waveforms. More on these
-later. There are big differences even between 6581 revisions themselves[^1]. (A
+later. There are big differences even between 6581 revisions themselves[^2]. (A
 6582 model was also released but its internals are the same as that of the 8580,
 only the labels differ.)
 
-[^1]: __TODO_: As per Lagerfeldt's findings, the differences
+[^1]: https://www.cebix.net/VIC-Article.txt
+
+[^2]: __TODO__: As per Lagerfeldt's findings, the differences
 in 6581s are due to the filter components, not due to the chip revisions
 themselves. See [Mythbusting the 6581 revisions](https://ultimatesid.dk/).
 
@@ -539,9 +541,12 @@ __TODO__: This would need a diagram, too.
 This generates a very long sequence of pseudo-random values before it repeats.
 The LFSR is clocked by the rising edge of bit 20 of the phase-accumulator so the
 noise spectrum - the 'sense of pitch' - can be controlled. With the TEST-bit
-enabled the feedback can be forced to 1 in the LFSR so it can be filled with 1s
-over a cca 8000 cycles' period, reaching the value of `$7FFFFF` which is
-probably the initial value of it at startup.
+enabled the individual bit inputs become floating and gradually lose charge,
+the inverter connected to it will become high after some time so the register
+can be filled with 1s over a variable number of cycles' period, depending on the
+chip revison and temperature, reaching the value of `$7FFFFF` which is the initial
+value of it at startup (will actually become `$7FFFFE` when the TEST-bit or the RESET
+signal is released).
 
 The 23-bit LFSR value still has some linearity/predictability between the
 adjacent bits so we take the noise-output from a so-called 'scrambler' instead.
@@ -625,9 +630,8 @@ It's worth noting that if you look at a pulse+sawtooth with 100% duty-cycle, the
 combined waveform samples don't go above the corresponding sawtooth values, only
 below. This means that the FETs driving high are really much weaker than the
 ones driving low. Especially on the old 6581 SID where most combined waveforms
-are weak (contain many 0s) and have MSB suppressed (as a result their amplitudes
-are halved but their frequencies are doubled, except with the pulse+triangle
-combination).
+are weak (contain many 0s) and have the MSB suppressed when sawtooth is selected
+(as a result their amplitudes are halved but their frequencies are doubled).
 
 If you add triangle to the 'mix' it gets even more complex: it connects adjacent
 bits (for the left-shifting mentioned at waveform-generators) and provides even
@@ -1075,4 +1079,3 @@ v0.1 by Hermit (Mihály Horváth), 2022
 ## Other Contributors
 
 - LaLa (Imre Olajos) - proofreading, reformatting
-
