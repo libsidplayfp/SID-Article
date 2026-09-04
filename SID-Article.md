@@ -72,7 +72,7 @@ __TODO__: Diagram needed here
 There are two external capacitors to support the filter circuits integrated into
 SID. These capacitors are quite different in value for the old and new models,
 therefore the SID versions are not readily interchangeable without any modding.
-6581 models also prefer a 1 kOhm resistor towards ground on their output for
+6581 models also requires a 1 kOhm resistor towards ground on their output for
 the simplified output-stage driver circuit. At least their 28-pin DIP package
 form-factor is the same so they fit into each others' sockets without any
 hassles.
@@ -112,8 +112,8 @@ themselves. See [Mythbusting the 6581 revisions](https://ultimatesid.dk/).
 
 | Pin name      | Description    |
 | ------------- | -------------- |
-| CAP1A, CAP1B  | Filter capacitor 1 (6581: 470 pF, 8580: 20 nF |
-| CAP2A, CAP2B  | Filter capacitor 2 (6581: 470 pF, 8580: 20 nF |
+| CAP1A, CAP1B  | Filter capacitor 1 (6581: 470 pF, 8580: 22 nF |
+| CAP2A, CAP2B  | Filter capacitor 2 (6581: 470 pF, 8580: 22 nF |
 | !RES          | Reset input - if low for at least 10 phi2 cycles, all internal registers reset |
 | PHI2          | Input for system oscillator, receives data only when high |
 | R/!W          | High = read allowed, Low = write allowed |
@@ -121,7 +121,7 @@ themselves. See [Mythbusting the 6581 revisions](https://ultimatesid.dk/).
 | A0..A4        | Address inputs to select one of the 32 internal registers |
 | GND           | Ground |
 | Vdd           | Second voltage (6581: +12 VDC, 8580: +9 VDC) |
-| AUDIO OUT     | Audio outout, 6 VDC 3Vp-p at max volume |
+| AUDIO OUT     | Audio outout, 6 VDC (6581) 4.75 VDC (8580) 3Vp-p at max volume |
 | EXT IN        | External audio input, mixes with SID output and can be filtered. |
 |               | (8580 needs a ca. 330 kOhm to GND on this pin to fix old digi sounds.) |
 | Vcc           | Main voltage, +5 VDC |
@@ -147,11 +147,9 @@ chips can be added to the C64 and in that case their base-addresses differ from
 `$D400`. There's no set specification, yet, for what address they should reside
 at.)
 
-__TODO__: Really? I thought the SID file format specifies these addresses?...
-
 Most registers are write-only and you can't read them back, but there is also a
 little feedback from SID towards the C64 in the form of read-only registers, not
-to mention bit-fading which makes tricks like Hein's `ROR D400,X` possible.
+to mention bit-fading which makes tricks like Hein's `ROR $D400,X` possible.
 
 __TODO__: This ROR trick is never explained in this document. Also, needs reference link.
 
@@ -326,8 +324,25 @@ parts of this document.
 Attack happens on a linear scale. Here's a list of Attack times on PAL C64
 machines:
 
-2ms, 8ms, 16ms, 24ms, 38ms, 56ms, 68ms, 80ms,
-100ms, 250ms, 500ms, 800ms, 1s, 3s, 5s, 8s
+| Attack value | Attack time |
+| ------------ |:-----------:|
+|  0           |   2ms       |
+|  1           |   8ms       |
+|  2           |  16ms       |
+|  3           |  24ms       |
+|  4           |  38ms       |
+|  5           |  56ms       |
+|  6           |  68ms       |
+|  7           |  80ms       |
+|  8           | 100ms       |
+|  9           | 250ms       |
+| 10           | 500ms       |
+| 11           | 800ms       |
+| 12           | 1s          |
+| 13           | 3s          |
+| 14           | 5s          |
+| 15           | 8s          |
+
 
 Decay and Release have longer (3 times that of Attack) non-linear curves.
 
@@ -536,7 +551,17 @@ signal to be fed back to its rightmost bit (LSB). There are so-called 'taps' on
 carefully selected places, bit 22 and 17 of the LFSR, that are XOR-ed and that
 value is fed back to the LSB.
 
-__TODO__: This would need a diagram, too.
+```
+                     reset  +--------------------------------------------+
+                       |    |                                            |
+                test--OR-->EOR<--+                                       |
+                       |         |                                       |
+                       2 2 2 1 1 1 1 1 1 1 1 1 1                         |
+      Register bits:   2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 <---+
+                           |   |       |     |   |       |     |   |
+      Waveform bits:       1   1       9     8   7       6     5   4
+                           1   0
+```
 
 This generates a very long sequence of pseudo-random values before it repeats.
 The LFSR is clocked by the rising edge of bit 20 of the phase-accumulator so the
@@ -760,7 +785,47 @@ In the register-section I described the exact addresses and bits of the filter-
 controls which determine this route. The channels going into the filter are
 summed through resistors.
 
-__TODO__: Needs a block diagram
+```
+                +---------------------------------------------------+
+                |                                                   |
+                |             +---Rf--+                             |
+                |             |       |                             |
+                |   +---------o--<A]--o-------R------+              |
+                |   |                                |              |
+                |   |                                |              |
+  $17           |   |                    (CAP2B)     |  (CAP1B)     |
+  0=to mixer    |   +--R---+  +---Rf--+      +---C---o      +---C---o
+  1=to filter   |          |  |       |      |       |      |       |
+                +------R---o--o--[A>--o--Rw--o--[A>--o--Rw--o--[A>--o
+      Ve (EXT IN)          |          |              |              |
+  D3  \ ---------------R---o          |              | (CAP2A)      | (CAP1A)
+      |   V3               |          | Vhp          | Vbp          | Vlp
+  D2  |   \ -----------R---o    +-----+              |              |
+      |   |   V2           |    |                    |              |
+  D1  |   |   \ -------R---o    |   +----------------+              |
+      |   |   |   V1       |    |   |                               |
+  D0  |   |   |   \ ---R---+    |   |   +---------------------------+
+      |   |   |   |             |   |   |
+      R   R   R   R             R   R   R
+      |   |   |   | $18         |   |   |  $18
+      |    \  |   | D7: 1=open   \   \   \ D6 - D4: 0=open
+      |   |   |   |             |   |   |
+      +---o---o---o-------------o---o---+
+                  |
+                  V
+             Mixer output
+
+  V1  - voice 1
+  V2  - voice 2
+  V3  - voice 3
+  Ve  - ext in
+  Vhp - highpass output
+  Vbp - bandpass output
+  Vlp - lowpass output
+  [A> - inverting op-amp
+  R   - "resistors", implemented with custom FETs
+  C   - capacitor
+```
 
 This circuit in the SID is a '2-integrator loop bi-quadratic' filter and as its
 name suggests, it contains two integrators in a loop through a 3rd member, a
@@ -834,7 +899,7 @@ vibratos, LFOs, etc.
 One of the most important features of such tools is to eliminate the ADSR delay-
 bug so the composer can rely on sound-starts. The workaround to the bug is
 called '_Hard-Restart_'. (Hermit has another article about it in the FlexSID's user
-manual. (__TODO__: Link needed) )
+manual, see Appendix.)
 
 The method 'resets' the ADSR rate-counters, so when a new sound (Attack) happens
 we know the rate-counter is not just anywhere, but it's counting inside the
@@ -1079,3 +1144,166 @@ v0.1 by Hermit (Mihály Horváth), 2022
 ## Other Contributors
 
 - LaLa (Imre Olajos) - proofreading, reformatting
+- Leandro Nini - minor additions
+
+# Appendix
+
+           Some in-depth info about Hard-Restart and ADSR-delaybug
+           -------------------------------------------------------
+
+ It's not essential to have hard-restart in your arsenal, great SID-musicians in
+the past were aware about the SID-delaybug and selected ADSR values carefully
+to avoid it, or cause it if that was what they needed...
+ Typical players perform Hard-Restart automatically. This is not the case with
+FlexSID, but at least the specialized C6 command makes it possible in less space
+than it could be done with ordinary InsFX-table commands. It's usage has been
+told above, but how Hard-Restart works in general is a mystery to many people.
+ So here I take the chance to share what I know about it, with the experience I
+had by coding players and SID-emulation engines several times (FlexSID contains
+my cSID engine, you can find the source-code in file 'SIDemulation.c'.)
+
+ To understand this, one needs to know some internal workings of the SID's ADSR:
+The ADSR delay-bug which makes SID soundstarts unreliable sometimes is caused by
+a lacking/simplified implementation of the so-called 'rate-counters'. These are
+affected by a lookup-table and the values written into SID ADSR registers, and
+they determine the Attack/Decay/Release speeds/rates of the ADSR-envelope curve.
+How? Rate-counter counts at 1MHz and when it reaches the looked-up value it is
+reset to 0. This  is done periodically, and the envelope-counter (essentially
+the ADSR curve) 8bit register can increase/decrease at each period to eventually
+reach the target value (which is 255 for attack, 0 for release, and the Sustain
+value for Decay). Decay and Release sometimes skip these steps to ensure non-
+linear fadeout which is more natural to the ears, but it's not important here.
+
+ There are 2 main problems: First there is only 1 rate-counter (per channel) in
+the SID, so it's shared between these 3 ADSR phases. This wouldn't be much of a
+problem, but the rate-counter compare-value is only tested for equality. That
+can cause the bug, because the compare-value depends on the phase/state of the
+ADSR and the rate-counter is not reset when the ADSR advances from one phase to
+another, only when it is equal to the compare-value. The reason behind this must
+be the fact that rate-counters are not actual binary counters but simpler LFSRs,
+in other words, pseudo-random generators. They go through all possible values
+just like counters, but not in a linear fashion. And that makes only equality
+comparison possible in a simple circuitry (pobably by XOR-ing). Linear counting
+and magnitude comparison is out of the question, probably due to chip-area
+constraints at the time of SID's development. Let's see through an example in
+slow-motion why/how this can be a problem and cause delay-bug:
+
+ Let's say we have an Attack set to 4 in SID by the C64, and we turn on the
+Gate-bit in Waveform-control register. The ADSR then goes to Attack phase and
+the rate-counter, at whatever value it is currently, is now compared to a new
+value periodically, which corresponds to its 150th step, whatever it is for the
+LFSR. Let's pretend from now on the rate-counter is linear. So it counts, and
+when it reaches 149 (assigned to Attack value 4 in the table), it resets back
+to 0 which allows one step up on the Attack curve. Normally, at 1MHz clock, the
+rate-counter period is 150 microseconds, and if everything goes fine, the Attack
+gradually steps up to the envelope top-value 255 in 150us*255 = 38ms to give
+place for the next 'Decay' phase. But what if rate-counter was not between the
+0..149 values before the very first Attack step? If it was set bigger by a
+bigger Release previously, it doesn't get reset until it reaches the maximum
+value 32767 (being a 15bit counter) where it wraps around back to 0. But
+32768*1us=32.8ms has elapsed meanwhile, without any increase in the envelope
+value. Our Attack phase was delayed by this amount of time, we're facing an
+audible delay bug in this case.
+ This problem won't happen in the Attack-to-Decay transition if Attack-rate is
+bigger than Decay-rate, because the transition between these 2 phases is
+strictly determined by the rate-counter, and is synchronized by it.
+However, there is a second place too in the ADSR curve where this delay-bug can
+happen, the transition from Sustain-phase to Release-phase, caused by a gate-bit
+turn-on at any time, no matter where the rate-counter is in counting. It's not
+as audible usually as the Attack-bug described first. This happens when the
+Decay rate was set bigger than the Release, so the rate-counter could possibly
+have passed through the new Release-compare-value to wrap around again.
+
+ Now we know the problem, and we have a solution for it called 'Hard-Restart'.
+To ensure the rate-counter being below the rate-compare-value of the new note's
+Attack, we reset the previous note's rate-counter to 0. As there's no direct way
+to do it, first we need to know whether we're in Decay or Release phase, and set
+its rate to 0. Usually it's done by turning off the gate-bit, so the phase is
+known to become 'Release', then setting only Release to 0. But if it's not sure
+that the previous note was turned off, setting Decay register-value (rateperiod)
+to 0 at the same time can be beneficial. Because we never know where the rate-
+counter is in the counting at any moment, we can only be sure that it reaches
+zero after resetting ADSR to 0, if we wait at least the above mentioned 32.8ms.
+ So if the wrap-around delay-bug happened, we give enough time for the
+rate-counter to 'settle down'. As most music routines work at 50Hz PAL rate,
+this takes 2 screen-refresh/vsync frames. After this we have a fresh start.
+
+ But prefroming HardRestart is only half of the story, it's important too how
+we start a new note. Turning on Gate-bit of course starts the note. But we have
+to set new ADSR values for the new note. Before turning on the Gate-bit, we're
+in Release phase if gate was turned off and the rate-counter rapidly counts
+between 0 and 9 (the internal compare-value for a Release value 0). If we now
+change SR register (to the instrument SR-data) before turning on gate-bit,
+we lose control over the rate-counter again, because it leaves the 0..9 region
+if the new Release is bigger than 0. So it's clearly seen it does matter in
+what order and timing we set the new AD/SR and gate-bit to start the new note.
+ If we were really in Release-phase during the hard-restart, Attack/Decay
+register can be set without a problem before turning gate-bit on. If we set it
+afterwards, and Attack/Decay-register was not reset during the Hard-Restart,
+we can cause a delay-bug if the previous note's Attack was bigger than the new,
+because the old Attack is being performed with larger rate-period, only then
+comes the new Attack with smaller period, possibly missing a big compare-value.
+ Sustain/Release register can safely be set right after turning gate-bit on,
+because its value is not used in Attack-phase as rate-counter data-source. In
+short, the safest ADSR vs Gate setting order would be: AD -> Gate -> SR.
+
+ As with other quirks of C64, we can turn this delay-bug too to our advantage,
+and cause it intentionally. They sometimes call this method the 'sexy-start'.
+ The waveform-sequencer table's 1st waveform, which takes a 20ms PAL-frame, will
+be inaudible during the 32.8ms delay-period, but the 2nd waveform's end can
+be heard in the last 2*20ms-32.8ms = 7.2ms part of the 2nd frame. it's shortened
+significantly compared to 20ms, and sound-start is nicer, more 'percussive',
+nearly all 1x-framespeed SID music today exploits this effect.
+ This is not necessarily preceded by a hard-restart, we can cause fairly stable
+delay bug by setting the new note's Attack much smaller than the previous
+note's Release. Statistically the delay-bug will happen in nearly 100% of the
+cases. Though sometimes glitches in the new notes can happen if the rate-counter
+was in the region of the new small Attack's period. If we want even more stable
+sexy-soundstart, a hard-restart before it can ensure a more predictable output,
+albeit the 4 frames of hardrestart+delaybug activity aggregates the sounds more.
+ Life is still not easy, because to cause a delay-bug for sure after a hard-
+restart, Release should be set bigger than Attack, enough CPU-cycles must be
+waited before turning on gate, so the rate-counter counted up to a region above
+the new Attack's counting region. In SID-Wizard I mention it in the source code,
+and Lft's BlackBird player has this kind of cyclecounting in the source as well,
+but these in-player timings only ensure delay-bug with Release-values above 2,
+if Attack-value is smaller.
+
+ A 1-frame shorter/smaller Hard-restart variant exists as well, which is based
+on this sexy-restart idea. This method turns off gate-bit and sets Release to
+the maximum F value and waits 1 whole frame to give the highest probability for
+the rate-counter to count into the region around 20000 during the 20ms
+time-period of this frame. This is also seen in BlackBird and in Cadaver's new
+mini-player at github (look for lda #$0F sta $d406,x).
+ It doesn't work for all ADSR values, but most Attack/Decay/Release rate-periods
+are much smaller than the one corresponding to $F, which is 31251. Value $E has
+19532, which is cca half of it, and the other values are getting exponentially
+smaller. Even with A/D/R value '$D' counting between 0..11720, setting $F for
+1 whole frame, rate-counter counts up to maximum 11720+20000=31720 which is
+already safe from wrapping around at 32767. Now that we know our rate-counter
+is bigger than 20000 and smaller than 32767 at the end of the 20ms frame,
+any Attack-value below $F will result in a wraparound aka delay-bug in the next
+frame. The only problem with this approach is that for Attack/Release values
+above $D the delay can be small and jittering. But for $0..$C the total delay is
+around 29000, as rate-period of $C is 3907, much smaller than with $D..$F.
+ Other advantage of this method is that even the typical $09 inaudible 1st-frame
+waveform can be omitted, because 20ms was already spent with the 'Hard-Restart',
+and the first audible waveform is soon audible in the 2nd half of he next frame.
+ This 1frame HardRestart is best for sounds that have short-enough decay/release
+or they end/decay before the next note, because the release-value set to $F for
+1 frame, while sets the rate-period, it won't ensure a total envelope-decay till
+the next gate-on, and while the next note is predictable and always sounds the
+same, the Attack phase starts from a nonzero envelope value, is not percussive.
+
+ There's a 'new kind of hard-restart' mentioned at CodeBase64 (by Shrydar, and
+Lft is involved here too), they call it 'Bottle', and it's a totally different
+cycle-exact code approach. It is able to reset the rate-counter in the timeframe
+of about 10 rasterlines (less than 1ms) instead of a 20ms frame, by utilizing
+the delaybug-free safe transition from a slow attack to a fast decay. There's an
+other ADSR-bug in SID too: envelope-counter too can wrap around when it is at
+value $FF and an Attack is triggered. This is used to bring the envelope back
+to $00 fast in this 'Bottle' approach.
+Only time will tell how soon this restart-method gets implemented in players...
+
+
+_Extracted from FlexSID docs by Hermit_
