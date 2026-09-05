@@ -93,22 +93,26 @@ themselves. See [Mythbusting the 6581 revisions](https://ultimatesid.dk/).
 
 ## Pinout of the SID Chip
 
-| Pin name | Pin # (left) | Pin # (right) | Pin name  |
-| --------:| -----------  | -------------:| --------- |
-|    CAP1A | 1            |            28 | Vdd       |
-|    CAP1B | 2            |            27 | AUDIO OUT |
-|    CAP2A | 3            |            26 | EXT IN    |
-|    CAP2B | 4            |            25 | Vcc       |
-|     !RES | 5            |            24 | POT X     |
-|    !PHI2 | 6            |            23 | POT Y     |
-|     R/!W | 7            |            22 | D7        |
-|      !CS | 8            |            21 | D6        |
-|       A0 | 9            |            20 | D5        |
-|       A1 | 10           |            19 | D4        |
-|       A2 | 11           |            18 | D3        |
-|       A3 | 12           |            17 | D2        |
-|       A4 | 13           |            16 | D1        |
-|      GND | 14           |            15 | D0        |
+```
+            +-----------+
+            |           |
+    CAP1A --|  1     28 |-- Vdd
+    CAP1B --|  2     27 |-- AUDIO OUT
+    CAP2A --|  3     26 |-- EXT IN
+    CAP2B --|  4     25 |-- Vcc
+     !RES --|  5     24 |-- POT X
+    !PHI2 --|  6     23 |-- POT Y
+     R/!W --|  7     22 |-- D7
+      !CS --|  8     21 |-- D6
+       A0 --|  9     20 |-- D5
+       A1 --| 10     19 |-- D4
+       A2 --| 11     18 |-- D3
+       A3 --| 12     17 |-- D2
+       A4 --| 13     16 |-- D1
+      GND --| 14     15 |-- D0
+            |           |
+            +-----------+
+```
 
 | Pin name      | Description    |
 | ------------- | -------------- |
@@ -1148,15 +1152,14 @@ v0.1 by Hermit (Mihály Horváth), 2022
 
 # Appendix
 
-           Some in-depth info about Hard-Restart and ADSR-delaybug
-           -------------------------------------------------------
+## Some in-depth info about Hard-Restart and ADSR-delaybug
 
  It's not essential to have hard-restart in your arsenal, great SID-musicians in
 the past were aware about the SID-delaybug and selected ADSR values carefully
 to avoid it, or cause it if that was what they needed...
  Typical players perform Hard-Restart automatically. This is not the case with
 FlexSID, but at least the specialized C6 command makes it possible in less space
-than it could be done with ordinary InsFX-table commands. It's usage has been
+than it could be done with ordinary InsFX-table commands. Its usage has been
 told above, but how Hard-Restart works in general is a mystery to many people.
  So here I take the chance to share what I know about it, with the experience I
 had by coding players and SID-emulation engines several times (FlexSID contains
@@ -1209,7 +1212,7 @@ bigger than Decay-rate, because the transition between these 2 phases is
 strictly determined by the rate-counter, and is synchronized by it.
 However, there is a second place too in the ADSR curve where this delay-bug can
 happen, the transition from Sustain-phase to Release-phase, caused by a gate-bit
-turn-on at any time, no matter where the rate-counter is in counting. It's not
+turn-off at any time, no matter where the rate-counter is in counting. It's not
 as audible usually as the Attack-bug described first. This happens when the
 Decay rate was set bigger than the Release, so the rate-counter could possibly
 have passed through the new Release-compare-value to wrap around again.
@@ -1235,7 +1238,7 @@ in Release phase if gate was turned off and the rate-counter rapidly counts
 between 0 and 9 (the internal compare-value for a Release value 0). If we now
 change SR register (to the instrument SR-data) before turning on gate-bit,
 we lose control over the rate-counter again, because it leaves the 0..9 region
-if the new Release is bigger than 0. So it's clearly seen it does matter in
+if the new Release is greater than 0. So it's clearly seen it does matter in
 what order and timing we set the new AD/SR and gate-bit to start the new note.
  If we were really in Release-phase during the hard-restart, Attack/Decay
 register can be set without a problem before turning gate-bit on. If we set it
@@ -1271,7 +1274,7 @@ if Attack-value is smaller.
 
  A 1-frame shorter/smaller Hard-restart variant exists as well, which is based
 on this sexy-restart idea. This method turns off gate-bit and sets Release to
-the maximum F value and waits 1 whole frame to give the highest probability for
+the maximum F value and waits one whole frame to give the highest probability for
 the rate-counter to count into the region around 20000 during the 20ms
 time-period of this frame. This is also seen in BlackBird and in Cadaver's new
 mini-player at github (look for lda #$0F sta $d406,x).
@@ -1299,11 +1302,11 @@ same, the Attack phase starts from a nonzero envelope value, is not percussive.
 Lft is involved here too), they call it 'Bottle', and it's a totally different
 cycle-exact code approach. It is able to reset the rate-counter in the timeframe
 of about 10 rasterlines (less than 1ms) instead of a 20ms frame, by utilizing
-the delaybug-free safe transition from a slow attack to a fast decay. There's an
-other ADSR-bug in SID too: envelope-counter too can wrap around when it is at
+the delaybug-free safe transition from a slow attack to a fast decay. There's
+another ADSR-bug in SID too: the envelope-counter can wrap around when it is at
 value $FF and an Attack is triggered. This is used to bring the envelope back
 to $00 fast in this 'Bottle' approach.
 Only time will tell how soon this restart-method gets implemented in players...
 
 
-_Extracted from FlexSID docs by Hermit_
+_Extracted from FlexSID docs, by Hermit_
