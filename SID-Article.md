@@ -95,7 +95,6 @@ themselves. See [Mythbusting the 6581 revisions](https://ultimatesid.dk/).
 
 ```
             +-----------+
-            |           |
     CAP1A --|  1     28 |-- Vdd
     CAP1B --|  2     27 |-- AUDIO OUT
     CAP2A --|  3     26 |-- EXT IN
@@ -110,7 +109,6 @@ themselves. See [Mythbusting the 6581 revisions](https://ultimatesid.dk/).
        A3 --| 12     17 |-- D2
        A4 --| 13     16 |-- D1
       GND --| 14     15 |-- D0
-            |           |
             +-----------+
 ```
 
@@ -1319,7 +1317,7 @@ or they end/decay before the next note, because the release-value set to $F for
 the next gate-on, and while the next note is predictable and always sounds the
 same, the Attack phase starts from a nonzero envelope value, is not percussive.
 
- There's a 'new kind of hard-restart' mentioned at CodeBase64 (by Shrydar, and
+ There's a 'new kind of hard-restart' mentioned at CodeBase64[^3] (by Shrydar, and
 Lft is involved here too), they call it 'Bottle', and it's a totally different
 cycle-exact code approach. It is able to reset the rate-counter in the timeframe
 of about 10 rasterlines (less than 1ms) instead of a 20ms frame, by utilizing
@@ -1330,4 +1328,8 @@ to $00 fast in this 'Bottle' approach.
 Only time will tell how soon this restart-method gets implemented in players...
 
 
-_Extracted from FlexSID docs, by Hermit_
+_Extracted from FlexSID[^4] docs, by Hermit_
+
+[^3]: https://codebase64.net/doku.php?id=base:a_new_kind_of_hard-restart
+
+[^4]: https://csdb.dk/release/?id=260718
