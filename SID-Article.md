@@ -181,7 +181,7 @@ With that said, let's examine the registers for the 3 channels one-by-one.
 | Channel 2 | `$D407`      | `$D408`       |
 | Channel 3 | `$D40E`      | `$D40F`       |
 
-Pitch low-, and high-byte. These bytes together control the pitch of an
+Pitch low and high-byte. These bytes together control the pitch of an
 oscillator. 16 bits give us quite enough resolution to make perfect pitches in
 the region of 15Hz to 3848Hz (PAL) with equal steps of cca 0.06Hz. The human ear
 and brain perceives pitches in a non-linear fashion, that is we hear less
@@ -248,9 +248,9 @@ How this is done deserves a separate topic in this article, so stay tuned.
 
 If none of the waveforms are selected then the floating of the last wave-output
 value can be observed for a while, then it decays. On a real C64 the duration of
-the decay is temperature (uptime) dependent.
+the decay is model and temperature (uptime) dependent.
 
-The oscillator in the SID can be reset at any time and stopped by the turning on
+The oscillator in the SID can be reset at any time and stopped by turning on
 bit 3 (value: 8) 'TEST'-bit. It was probably implemented in the SID for factory
 testing but it comes handy as a tool in chipmusic. Whether it generates a high
 or low steady output depends on the selected waveform. (Contrary to popular
@@ -401,7 +401,7 @@ the 8580's resonance-control is continuous, although it's non-linear.
 Setting high resonance can lead to distortions as the magnified signal's level
 approaches the limits presented by the 9V/12V power.
 
-The low nbble has 3 bits dedicated to turn the filter on/off for the separate
+The low nibble has 3 bits dedicated to turn the filter on/off for the separate
 channels: bit 2 (value 4):channel 3, bit 1 (2):channel 2, bit 0 (1):channel 1.
 The number of selected filtered channels has a small effect on the cutoff and
 resonance, but it's not very noticable.
@@ -480,8 +480,8 @@ These are 8-bit readable registers that represent the waveform selector and
 envelope generator outputs of the 3rd channel. In combination with the channel 3
 disabling mentioned before these can be used as an LFO in rare cases. But for us
 a more useful feature of these registers is to determine which model of SID is
-present in the machine by checking for waveform and envelope differences. For
-example, Hermit used these registers many times to display an oscilloscope for
+present in the machine by checking for waveform differences. For example,
+Hermit used these registers many times to display an oscilloscope for
 the 3rd channel or to control graphic effects by the music. Use your imagination
 what else these could be used for.
 
@@ -542,26 +542,26 @@ sawtooth wave.
 __TODO__: This would need a diagram, too.
 
 The ring-modulation for the triangle wave is achieved by enhancing the above-mentioned
-MSB XOR-ing with an extra XOR if the RING-bit is set. This extra XOR with the
-MSB happens whenever the source (modulation) channel's phase-accumulator MSB
-is 1. In other words, the triangle is inverted/flipped by the other channel
+MSB XOR-ing with an extra XOR with the inverted MSB of the source (modulation)
+channel's phase-accumulator if the RING-bit is set. As a result, the triangle
+is inverted/flipped when the two MSBs are equal.
 (again, ring source-to-destination channel-pairs are: 1->2 , 2->3 , 3->1 ).
 
 Noise waveform has its own 'counter' in the form of a pseudo-random sequence
-generator. It's realized by a 23-bit LFSR (Linear Feedback Shift-Register),
-which is a shift-register that when clocked, simply shifts its 0/1 contents to
-the 'left'. What makes it an LFSR is the feedback mechanism that generates the
-signal to be fed back to its rightmost bit (LSB). There are so-called 'taps' on
-carefully selected places, bit 22 and 17 of the LFSR, that are XOR-ed and that
-value is fed back to the LSB.
+generator. It's realized by a 23-bit (actually 24 on die but the MSB is unused)
+LFSR (Linear Feedback Shift-Register), which is a shift-register that when clocked,
+simply shifts its 0/1 contents to the 'left'. What makes it an LFSR is the feedback
+mechanism that generates the signal to be fed back to its rightmost bit (LSB).
+There are so-called 'taps' on carefully selected places, bit 22 and 17 of the LFSR,
+that are XOR-ed and that value is fed back to the LSB.
 
 ```
                      reset  +--------------------------------------------+
                        |    |                                            |
-                test--OR-->EOR<--+                                       |
+                test--OR-->XOR<--+                                       |
                        |         |                                       |
-                       2 2 2 1 1 1 1 1 1 1 1 1 1                         |
-      Register bits:   2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 <---+
+                     3 2 2 2 1 1 1 1 1 1 1 1 1 1                         |
+      Register bits: 2 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 <---+
                            |   |       |     |   |       |     |   |
       Waveform bits:       1   1       9     8   7       6     5   4
                            1   0
@@ -582,15 +582,36 @@ adjacent bits so we take the noise-output from a so-called 'scrambler' instead.
 In case of the SID the scrambling is simply done by using 8 different bits of
 the LFSR to constitute to the wave-output (bit 20,18,14,11,9,5,2,0) which only
 has 8 bit resolution, but it's sufficient for noise. The 4 low-bits are not used
-for noise.
+for noise and fixed at 0.
 
 ### Waveform Routing
 
-Now the we generate the 4 basic waveforms (still digital, 12-bit wide) we are
-ready for ready for routing. Inside the SID there are pass-transistors (FETs) on
+Now that we have generated the 4 basic waveforms (still digital, 12-bit wide)
+we are ready for routing. Inside the SID there are pass-transistors (FETs) on
 all 12 bits of the waveform outputs acting as series-switches to select which of
 the 4 waveform-ouptputs we want to route to the bit-drivers of a channel's
 output.
+
+```
+              Ox
+               ^
+               |
+           +---+---+
+           |   |   |
+       Saw \   |   |
+           |   |   |          Tri
+ Tx+1 <----+   |   +------+----\---< Tx
+           |   |          |
+           |   |          |
+           |   \ Pul      \ Noi
+           |   |          |
+           ^   ^          ^
+          Sx   Px         Nx
+
+    Tri/Saw/Pul/Noi: waveform selectors
+    Tx/Sx/Px/Nx: waveform bit x
+    Ox: Output bit x
+```
 
 Ideally only one of them would be allowed to be turned on at a time, but there's
 no multiplexing logic to ensure that. This brings us further possibilities. Bob
