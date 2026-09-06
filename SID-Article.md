@@ -67,8 +67,6 @@ requires a 12V power-supply for its analog circuitry besides the 5V digital
 supply. The 8580 is found slightly to the right at the bottom of new C64 boards
 and it requires 9V and 5V power rails.
 
-__TODO__: Diagram needed here
-
 There are two external capacitors to support the filter circuits integrated into
 SID. These capacitors are quite different in value for the old and new models,
 therefore the SID versions are not readily interchangeable without any modding.
@@ -87,7 +85,7 @@ only the labels differ.)
 
 [^1]: https://www.cebix.net/VIC-Article.txt
 
-[^2]: __TODO__: As per Lagerfeldt's findings, the differences
+[^2]: As per Lagerfeldt's findings, the differences
 in 6581s are due to the filter components, not due to the chip revisions
 themselves. See [Mythbusting the 6581 revisions](https://ultimatesid.dk/).
 
@@ -523,21 +521,36 @@ They are created in different ways in 12-bit resolution.
 Sawtooth is the simplest one, it's simply the upper 12 bits of the phase-
 accumulator.
 
+```
+      /|  /|  /|  /|
+     / | / | / | / |
+    /  |/  |/  |/  |
+```
+
 Pulse/square-waveform is derived by comparing the pulsewidth/duty-cycle
 registers (value 0..4095) to the current top 12 bits of the phase-accumulator,
 and connecting all output-bits to 1 (Vcc) when it's greater, and to 0 (GND)
-when it's smaller.
+when it's smaller. A pulsewidth of 2047 results in a square waveform.
 
-__TODO__: This would need a diagram, too.
+```
+    +--+   +--+   +--+   +--+
+    |  |   |  |   |  |   |  |
+    |  |   |  |   |  |   |  |
+   -+  +---+  +---+  +---+  +--
+```
 
 Triangle waveform is made from the phase-accumulator (sawtooth) by XOR-ing all
 of its 11 upper bits with its MSB (bit 23). This causes the 2nd half of the
 sawtooth-wave to fold back giving us the triangle waveform. But as this has a
 halved amplitude, the 12-bit wave-output must be generated from the left-shifted
 form of this to ensure that the output has the same amplitude as that of a
-sawtooth wave.
+sawtooth wave. The lowest bit is always 0.
 
-__TODO__: This would need a diagram, too.
+```
+      /\    /\    /\    /\
+     /  \  /  \  /  \  /  \
+    /    \/    \/    \/    \
+```
 
 The ring-modulation for the triangle wave is achieved by enhancing the above-mentioned
 MSB XOR-ing with an extra XOR with the inverted MSB of the source (modulation)
@@ -591,7 +604,7 @@ the 4 waveform-ouptputs we want to route to the bit-drivers of a channel's
 output.
 
 ```
-              Ox
+              Vx
                ^
                |
            +---+---+
@@ -608,7 +621,7 @@ output.
 
     Tri/Saw/Pul/Noi: waveform selectors
     Tx/Sx/Px/Nx: waveform bit x
-    Ox: Output bit x
+    Vx: voice output bit x
 ```
 
 Ideally only one of them would be allowed to be turned on at a time, but there's
@@ -813,7 +826,7 @@ summed through resistors.
                 |                                                   |
                 |             +---Rf--+                             |
                 |             |       |                             |
-                |   +---------o--<A]--o-------R------+              |
+                |   +---------o--<A]--o------Rr------+              |
                 |   |                                |              |
                 |   |                                |              |
   $17           |   |                    (CAP2B)     |  (CAP1B)     |
@@ -906,8 +919,8 @@ earlier. (Some people say the simple transistor-based output-amplifier in the
 C64 might add some characteristic nonlinearity to its sound... maybe.)
 
 ---
+
 ## Usage of SID in Practice, Tips, Tricks and Secrets
----
 
 Knowing the internals of SID is not enough for squeezing good music out of it.
 We still need an interface from the SID to the Human, namely: the composer.
@@ -1169,9 +1182,13 @@ v0.1 by Hermit (Mihály Horváth), 2022
 - LaLa (Imre Olajos) - proofreading, reformatting
 - Leandro Nini - minor additions
 
+---
+
 # Appendix
 
 ## Some in-depth info about Hard-Restart and ADSR-delaybug
+
+_Extracted from FlexSID[^3] docs, by Hermit_
 
  It's not essential to have hard-restart in your arsenal, great SID-musicians in
 the past were aware about the SID-delaybug and selected ADSR values carefully
@@ -1317,7 +1334,7 @@ or they end/decay before the next note, because the release-value set to $F for
 the next gate-on, and while the next note is predictable and always sounds the
 same, the Attack phase starts from a nonzero envelope value, is not percussive.
 
- There's a 'new kind of hard-restart' mentioned at CodeBase64[^3] (by Shrydar, and
+ There's a 'new kind of hard-restart' mentioned at CodeBase64[^4] (by Shrydar, and
 Lft is involved here too), they call it 'Bottle', and it's a totally different
 cycle-exact code approach. It is able to reset the rate-counter in the timeframe
 of about 10 rasterlines (less than 1ms) instead of a 20ms frame, by utilizing
@@ -1327,9 +1344,310 @@ value $FF and an Attack is triggered. This is used to bring the envelope back
 to $00 fast in this 'Bottle' approach.
 Only time will tell how soon this restart-method gets implemented in players...
 
+[^3]: https://csdb.dk/release/?id=260718
 
-_Extracted from FlexSID[^4] docs, by Hermit_
+[^4]: https://codebase64.net/doku.php?id=base:a_new_kind_of_hard-restart
 
-[^3]: https://codebase64.net/doku.php?id=base:a_new_kind_of_hard-restart
+## Sound Design hints & tips
 
-[^4]: https://csdb.dk/release/?id=260718
+_Hermit's comments extracted from CSDb discussion[^5]_
+
+Now, I'll start by some accumulated experiences I had since I started to make
+C64 music...
+I don't want to take away the mystery from newcomers of exploring the SID sounds
+by themselves, therefore I won't give complete solutions to do this or that exactly,
+but some tips might come handy to get goin'...
+And on the other hand I'd be curious about the approach of others to get kickin' sounds.
+
+Let me start with my basic ADSR knowledge:
+My general experience with ADSR is that for most of the sounds the:
+
+'Decay' is usually set to '0' because that has three main advantages:
+- the 1st frame's waveform will sound shorter, sexier if 'Release' is bigger than '3'
+(due to some little delay-time is still spent during 1st frame when goes through
+zero Attack & Decay phases)
+- the volume/velocity of the individual notes can be set by the 'Sustain' value
+(while using 'Decay' would always reach the max. volume peak)
+- most of the sounds start more precisely, at the same time.
+(mixing too different ADSR settings would align notes backward/forward a bit)
+
+'Release' should be more than '3' to be on the SID's safe side with repetitive
+note-triggerings. (This may depend on player and hard-restart type. Hard restart
+is not always necessary, there's a whole topic about that.)
+In drums I usually use 6..9 values for 'Release' phase.
+
+These are true for most of my instrument to sound precise, but they're rules
+to break whenever it's needed to avoid being too commercial. Sometimes a full-length
+1st frame comes handy.
+
+These settings written above work for me with nearly all kind of percussive
+drum sounds, but with solo instruments too.
+
+In the "Waveform" program of an instrument we can refine/complicate the existing
+ADSR behaviour by utilizing the 'Gate' bit of the waveform. For example,
+percussive sounds with adjustable velocity can be produced by setting 'Gate' bit
+to '0' somewhere around the 2nd/3rd/4th frame (i.e. program-row)...
+
+__Snare__:
+For example, my snare waveforms look like this (pulsewidth 50%): 81 41 41 80
+('Gate' bit is cleared in 4th frame)
+
+The very 1st waveform of a sound many times is $09 in trackers, considered
+an old type of hard-restart, which triggers 'Test' bit of the wave-control
+register and supposedly stabilizes the sound. Nowadays it starts to be unnecessary
+for me, I don't tend to set it in 1raster-tracker but still have good sound starts
+by using the rules above)
+The $81 (hexa) value above gives the sound a crisp, strong percussive noise-start
+if used with high pitch-values (usually $d0..$ef in SID-Wizard/GoatTracker).
+As I wrote, with good ADSR settings this can be short enough to sound 'sexy'
+and 'modern'.
+The $41 pulse waveform is used like a sine, imitates when the membrane and body
+of a drum resonates in sinus waveform. (Pitch is tipically $98..$a8 for me in SW/GT).
+We could filter it to be a real sinus but it's not really necessary.
+We could use $11 triangle waveform here which resemples sinus better, but that
+would be around half the strength, and usually we need strong snare in the tunes,
+so $41 would be a good choice. ($80 coming after $11 would sound a bit weird anyway,
+compared to $41-$80 sequence)
+The second $41 can be $40 too, because 2-3 frames were enough time for the ADSR
+envelope to go to max. volume safely, but if we can leave the 'Gate' as long
+as we can, we can get stronger sound... recently I even left out this second $41
+waveform and still had a 'body' feel to the snare. But if used it should be a bit
+below the pitch of the previous $41 waveform, as the membrane of a drum gets
+loosened after the hit. (And in the opposite way, more $41 rows can be added too,
+but that's a bit old-fashioned and resembles tom instead of snare IMO...)
+So the $80 at the end is the simulation of the snare-wires, its pitch should be
+well selected to the previous pitches used with $41 waveforms.(usually $c0..$d0
+in SW/GT)
+
+__Kick__:
+(waveform-program example: 81 41 41 41 41 11 10 )
+The Kick-drum/bass-drum is based on similar principles as the snare, but we don't
+have a $80 snare-wire simulation at the end of the waveform-program, but a fat
+(50% duty cycle) 'pulse' or a sinus-like 'triangle' waveform. Therefore the kick
+can go through many pitches downwards rapidly to give the feel of a hit membrane.
+After the initial $81 high pitched 'step'/'kick' sound, pitches can start going down
+rapidly but from as much as $90..$a0 (SW/GT) values to very low frequencies
+like $84..$88. The pitch changes should be faster 'boosty' in the first frames,
+while in the last frames they shouldn't change a lot. That gives more percussive feel,
+but I'm sure there are other alternatives...
+I usually use the last $11..$10 waveforms to make the kick-sound shorter, but if left
+on $41..$40 it will decay stronger, sharper...
+
+The 1st waveforms of drums are not always necessarily $81 waveform (which btw
+sounds good most of the times), clever usage of other rich sounds, mixed waveforms
+can give even sharper/faster 'clicky' sound-starts if used with fitting pitch-value.
+Probably a recording or a storing oscilloscope comes handy to observe this event,
+but a good ear and some trials can make them happen too. I took this idea from
+Nata's tunes, he made a lot of investigation in this area.
+
+The pitches of drums are sometimes fatter and fit better to the rest of the sounds
+in a tune if they're kinda compatible with the key of the tune. I saw kick drum
+which had similar sound-sequence like a major chord (e.g. Thiefklang by Gangsta)
+and sounded very bassy... Possibly our ear can hear faster than our brain and
+it realises even from that fast pitch-sequence that it's better to listen.
+On the other hand, for conga/bell like sounds, big fast pitch changes in every
+frame chan cheat our ears to hear two distinct sounds. That's the most valuable
+trick of waveform-table, used in snare too.
+And of course you can use ring-modulation for belly sounds, btw. I'm not expert
+in it, but Drax has a lot of good examples for percussive/solo sounds with innovative
+ring/sync waveforms... (like snare in Sinful)
+
+For kick and snare you can use filters if possible, which can make it stronger
+and cleaner, more on that later... I've heard really good snare and kick sounds
+without any filter usage, while using filters are not guarantee for strong
+percussive sounds if not used properly...
+
+__Solo/lead sounds__:
+Expressions: In the past I always wondered how solo lead sounds sounded so good
+in JT's, and other people's tunes. From the C64 Manual we know the plain waveforms
+but in BASIC there were no 'vibrato' and 'slide' 'dynamics' and 'sweep' mentioned IIRC.
+But IMO these are the things that make it sound good, 'pulse-sweep' in 1st place.
+These are the things Jeff is talking about, to use a sound stylistically, using
+expressions. This is true for VST instruments too. A 'violin' is really bad if it's
+just put into the tune by notes from staff without slides/vibratos/legato/dynamics
+where needed...
+These are the fields where analog synthesis and C64 is strong compared to
+MIDI-controlled VSTs on modern PCs. MIDI is able to make slides/legato, but in my
+opinion in a more restricted way than on the C64, I could simulate violin expressions
+more easily (e.g. Rakoczi Indulo) than on PC.... (It depends on the VST too of course,
+how it handles CC.)
+Often in VST based C64 remixes lack the flexible/variable execution of the leads
+which we got used to on SID years ago.
+
+_solo-ADSRs_: Most probably the instruments have short attack and no 'decay' by default
+ (But the 'decay' can be useful for some kind of solos.) I like to give solo instruments
+a long 'release' sometimes, so they has a 'reverb'-like feel to them. But that's not good
+for fast, staccato-oriented solos... Later in patterns the ADSR (especially 'attack'
+and 'release' can be modified to give variety)
+The 'sustain' (i.e. volume of the notes) shouldn't be too harsh, it should be set to be
+in balance with the rest of the channels...that could make the tune sound more
+professional if some gives attention to volume ratios.
+When using created sounds, you should play much attention to 'sustain' to enhance
+dynamics of the tune and un-machinarize it a bit, to sound more lively. (A good musician
+usually feels like by instinct, where to put stronger/weaker/ghost notes.)
+In music theory there's a rule, often in a hierarchical mode the first sounds of a beat
+are strong, between them in the middle the sounds are medium-strong, and if there are
+notes inbetween, they're usually weak. This can change of course (for example with
+syncopation, as in 'Conga Beat' or 'Garden Party' where bass is a bit before
+the downbeat..)...
+Another useful field of the 'sustain' is to create 'delay echo'-like effect for the lead
+sounds on ONE channel. What you do there is you don't stop a note with the gate-off
+('---') signal in the pattern, but you leave the note running and you decrease the sustain
+value much lower with pattern-FX... (Then later you can put gate-off also...)..
+Backwards it doesn't work on the SID by default, 'sustain' can only be decreased without
+note-retriggering, cannot be simply increased (will kill the sound)...
+To simulate even longer 'delay echo' impressions, you can make the notes change together
+with decreasing the 'sustain' value, usually to notes 1-2 rows before, but the base note
+of the musical key can even work in that case...
+With delay-tricks you can create phase difference between 2 SID channels, that's how
+you can create real echoes (Like Robocop3 title beginning solo)... It's up to you
+and the music-editor how you solve the delaying of the 'echo' channel, where the solo
+content is mainly the same as on the 'dry' original channel... And of course the 'echo'
+channel should be more silent, that can be achieved by using another instrument or
+placing 'sustain' value pattern-effect for the notes. A good 'economical' solution
+can be seen in Drax's 'Winterbird' tune, where on the 'echo' channel he sets a sound
+with long 'attack' and the upcoming notes are all played legato....
+The delay and volume difference can be really small between the two channels, and that
+gives a strong 'room' reverb feel, I like that very much...
+
+_solo-waveforms_: All kinds of waveforms (except $81 in average players) can be used
+as lead, it depends on the taste for the tune, or maybe an instrument that should be simulated.
+
+_$11 (triangle)_ - Triangle has half the amplitude, so it can be used as a light
+flute-like sound. Not too flexible, but some vibratos/slides/legato can make interesting feelings.
+A good trick I see in many tunes that the first frame has a stronger waveform, maybe
+the 2nd and 3rd too, so the sound can be heard, and then it goes light into the $11 waveform.
+
+_$21 (sawtooth)_ - This seems to be the best to simulate violin/trumpet-like sounds.
+But it stands well for solos in many other cases (e.g. Toggle's SW tunes)..
+A plain waveform so it needs some vibrato/slide/ADSR-manipulation/detuning not to
+sound too plain. In contrast, trance-like tunes like the plain vibrato-less waveform
+but they usually use a lot of other effects in place like detuning...
+
+_$31_ - I don't use it many times but has interesting sound. The problem is on 6581
+old SID, where it's very silent IIRC.
+
+$41 (pulse) - The most useful and most flexible waveform is pulse. That's the secret
+for good lead sounds, because it can have spectrum from sine-like to sawtooth-like
+depending on the pulse-width, and is controllable on fine grade (12 bit, from $000 to $fff)..
+The pulse is symmetrical with $800 value, that's the fattest sound (maybe a bit more),
+and as we go towards $000 or $fff it gets sharper, richer, with more harmonics, but looses
+fatness gradually. I don't hear big difference between very low (e.g. $100) or very high
+(e.g. $F00) pulse-width values, but their polarity is the opposite. So selecting them
+might depend on the rest of the channels, not to kill some other waveforms by going into
+the opposite direction with pulse...
+The pulse waveform can also be too plain and machine-like without vibrato/detune/etc.
+The most common way, and the real strength of C64 solo voices is the pulsewidth-sweep effect,
+which is handled by the players in software. This modifies (increases/decreases)
+the pulsewidth in slow/rapid pace, and gives a 'moving' or 'lively' feel to even simple
+long notes. In my opinion music is about changes, as our brain interprets differences
+instead of absolute values, that's coming from the neurons' workings. (E.g. you feel
+smell for a while but you get more used to it after a while. That's coming from nature
+and the result of a million years' evolution...on music content side, maybe using dissonances,
+and then resolving them lies around the same principle.)
+So the pulse-sweep is a solution to give 'difference'&'movement' to a sound. The starting
+value of the pulsewidth and the direction/speed should be selected according what you want
+to hear (needs some experimenting and practice)...
+If you want a thin solo, you can start with $100..$400 values, but if you want a guitar-like
+'distorted sine' waveform, you can start with $500..$b00 values. The $800 is the fattest
+as a start, but I usually don't like to start a solo with this bumping 50% duty cycle,
+instead I start around $700 or $900 which has more harmonics and is less aggressive.
+The speed of the sweep depends, I'd classify two kinds:
+- Slow sweep ($08..$20 in SW): it's a good technique for 'beautiful' solo sounds...
+the majority of C64 tunes uses this technique for solo
+- Fast sweep ($20..$70 in SW): it's advantage is that the spectral distribution of the sound
+varies rapidly, and a lot of harmonics appear in a short timeframe, often with the feel of detuning.
+This generates a 'choir'-like effect on ONE channel, and the solo has a space (this is true
+for bass sounds as well, like Golden Axe's starting). I use this kind of solo mainly
+in techno/trance like tunes, where that's closer to the style...
+The keyboard-tracking (supported with a 4bit resolution in SID-Wizard) can be also a good
+thing to enhance the variable feel to a solo. If values are selected right (after experimenting)
+you can reach that for example, what a solo-guitarist does by hand: thinner pulsewidth
+for deeper notes and fatter pulsewidth (around $800, 50%) for the high-pitched notes...
+
+_$51 (pulse+triangle)_, _$61 (pulse+saw)_, _$71 (pulse+triangle+saw)_ - can produce
+interesting sounds with mixed waveform. Probably on 6581 old SID not all of them
+are working well like on 8580. I use $51 waveform with $400..$700 pulsewidth setting
+for hammond-like sounds (idea taken from Fun Factory solo of Shogoon, I use it in tunes
+like Arok 2013 invitro)...
+In Lenore I also imitate the 'vocal' at the outro of the tune with mixed waveform.
+These waveforms are to be experimented, they might cause some surprises, haven't been
+fully utilized yet...
+(These waveforms can be used for 'slap bass' imitation too, being similar sometimes...)
+Pulse-sweep is not very hearable with the mixed waveforms, but a little bit hearable.
+After a certain pulsewidth the sound gets silent...
+I had some luck with mixed waveforms to produce brass-like sounds (heard in Garden Party cover).
+Especially thudding them with some low-pass or mixed filter... check out Shogoon's 'Sling'
+for good brassy sounds.
+
+_$81_ - normally not used as solo (anyway, pitch setting makes sense), but Soundemon's
+technique with a special player could generate new waveforms from noise. I haven't seen
+a lot of examples of that yet...
+
+Ringmod/sync effects can come handy in solo-sounds occasionally to give the sound
+some 'roaring' feel, Jeroen Tel uses this in the 'Eliminator' tune I guess but
+didn't check so far if this is what exactly happens there...
+There are some examples where ringmod is used extensively throughout the whole tune,
+Necropolo is a master of it. His 'engine' sound in 'Cadmium' is unforgettable...
+
+_solo-pitches_: An automatic delayed vibrato can be good, vibratos can be good
+to 'un-machinarize' the plain simple pitches, but they shouldn't be used everywhere.
+That's why a delay of 8..20 frames can be handy, so the fast note-changes won't suffer
+from intonation issues due to vibrato... Usually the vibrato sounds good for long notes,
+but sometimes I can use them to cause some extra dynamics (!) as well, especially
+when 'sustain' cannot be bigger.. The vibratos can bend the pitch into both directions
+on analog synths and SID, but in SID-Wizard they can be set to bend only upwards
+(like on guitar without tremolo-arm) or downwards....Increasing the vibrato-amplitude
+for a long note over time even gives a special feel (like in old SID tunes, or on real violin)...
+Other commonly used trick for solo sounds is to give an octave up/down shift
+for the 1st frame of the sound, which cheats the ears to hear a doubled sound.
+Non-octave intervals in 1st frame are also good (like a third/fourth) and can give
+a totally modified mood to a solo voice (e.g. beginning solo of Pimp My Commodore tune)...
+A $81 noise waveform with a certain pitch is also applicable for 1st frames of solo-sounds,
+for example pressing a key on the real Hammond organs has this little white-noise
+for some milliseconds before the real musical note starts (I use this in Arok 2013
+invitation tune).
+The detuning can come handy to make 'choir'-like effect on solo sounds, it needs 2 channels,
+one in normal pitch, the other with the same note but pitched up/down with some cents.
+Most current trackers support this function. A $21 with good detuning sounds like a real
+string-ensemble in many SID tunes.
+
+Finally, if you have already mastered the above mentioned techniques to tweak a good sound
+you want to hear (or you create a good one by accident), you can make your solo sound
+even more interesting by placing a filter/filtersweep on it...
+
+As SID has only one filter
+to share between the 3 channels you have several options:
+- Make only the solo channel filtered.
+- Use the solo channel as primary filter-controller, and the others will follow it.
+- Or an other (e.g. bass) channel controls the filter and the solo channel uses the same filter...
+
+Filter sweep is a bit similar to the pulsewidth-sweep, can be controlled in 11bit resolution.
+On 6581 the fast filter-changes (cutoff/type/resonance) are heard as popping sound depending
+on the degree of change, on 8580 it's much less audible. So on 6581 the wild filter-programs
+should be avoided...These clicking sounds can be heard in my 'Deep Though' tune's intro
+for example. Increasing frame-speed can make the transitions smoother and these clicks
+less audible...
+Anyway, when I decide to use filter for solos I usually use gentle, smooth filters...
+Jeroen Tel's solos using filter-sweep (and echo) are good examples, like Myth...
+Generally filters (pulse/filter) should be two-directional to avoid overflow
+when reaching $00 or $ff values, but sometimes it's used as advantage...
+Sometimes the sweeps are into only one direction but the notes are short enough
+not to wait for this range-overriding...
+
+In more restricted trackers musicians who care about 'expressions' by timbre,
+used separate instruments in parts of the solos. For example, the same sound,
+but with less 'release' in parts of the solo, where 'staccato' sounding was desired...
+For an example to this solution: I used several instruments of different, timbre (pulsewidth)
+in 'The Loner' cover, mainly to simulate the solo-guitar sound (described above
+with 'keyboard-tracking)...
+
+Many trackers (like DMC,SW for example) support a setting to disable the 'sweep-reset'
+on sound start, so a new note won't start the sweep from the starting point but let it continue.
+I use this too in Pimp My Commodore solo, this gives even more variety to a solo...
+This is also usable to simulate filter-cutoff automation in techno-like tunes,
+if there are no pattern-effects for that...
+
+
+[^5]: https://csdb.dk/forums/index.php?roomid=14&topicid=97576
+
