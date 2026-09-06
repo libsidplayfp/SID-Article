@@ -1526,6 +1526,7 @@ but they usually use a lot of other effects in place like detuning...
 
 _$31_ - I don't use it many times but has interesting sound. The problem is on 6581
 old SID, where it's very silent IIRC.
+
 $41 (pulse) - The most useful and most flexible waveform is pulse. That's the secret
 for good lead sounds, because it can have spectrum from sine-like to sawtooth-like
 depending on the pulse-width, and is controllable on fine grade (12 bit, from $000 to $fff)..
@@ -1613,11 +1614,14 @@ string-ensemble in many SID tunes.
 
 Finally, if you have already mastered the above mentioned techniques to tweak a good sound
 you want to hear (or you create a good one by accident), you can make your solo sound
-even more interesting by placing a filter/filtersweep on it... As SID has only one filter
+even more interesting by placing a filter/filtersweep on it...
+
+As SID has only one filter
 to share between the 3 channels you have several options:
 - Make only the solo channel filtered.
 - Use the solo channel as primary filter-controller, and the others will follow it.
 - Or an other (e.g. bass) channel controls the filter and the solo channel uses the same filter...
+
 Filter sweep is a bit similar to the pulsewidth-sweep, can be controlled in 11bit resolution.
 On 6581 the fast filter-changes (cutoff/type/resonance) are heard as popping sound depending
 on the degree of change, on 8580 it's much less audible. So on 6581 the wild filter-programs
