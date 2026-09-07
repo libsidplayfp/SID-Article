@@ -588,12 +588,23 @@ chip revison and temperature, reaching the value of `$7FFFFF` which is the initi
 value of it at startup (will actually become `$7FFFFE` when the TEST-bit or the RESET
 signal is released).
 
+It is also possible to properly reset the LFSR fast and reliably with a clever trick
+by Dag Lem[^3]:
+
+1. Clear all bits. Bits are cleared by combined waveform writeback
+   (noise + triangle), and shifted in by setting and clearing the test bit.
+2. Set bits 0 - 17 by setting and clearing the test bit.
+3. Set bits 18 - 22 by allowing the LFSR to be clocked by oscillator bit 19.
+4. Reset the LFSR and oscillator by setting and clearing the test bit once.
+
 The 23-bit LFSR value still has some linearity/predictability between the
 adjacent bits so we take the noise-output from a so-called 'scrambler' instead.
 In case of the SID the scrambling is simply done by using 8 different bits of
 the LFSR to constitute to the wave-output (bit 20,18,14,11,9,5,2,0) which only
 has 8 bit resolution, but it's sufficient for noise. The 4 low-bits are not used
 for noise and fixed at 0.
+
+[^3]: https://github.com/daglem/reDIP-SID/blob/master/research/noise-reset.a65
 
 ### Waveform Routing
 
@@ -1188,7 +1199,7 @@ v0.1 by Hermit (Mihály Horváth), 2022
 
 ## Some in-depth info about Hard-Restart and ADSR-delaybug
 
-_Extracted from FlexSID[^3] docs, by Hermit_
+_Extracted from FlexSID[^4] docs, by Hermit_
 
  It's not essential to have hard-restart in your arsenal, great SID-musicians in
 the past were aware about the SID-delaybug and selected ADSR values carefully
@@ -1334,7 +1345,7 @@ or they end/decay before the next note, because the release-value set to $F for
 the next gate-on, and while the next note is predictable and always sounds the
 same, the Attack phase starts from a nonzero envelope value, is not percussive.
 
- There's a 'new kind of hard-restart' mentioned at CodeBase64[^4] (by Shrydar, and
+ There's a 'new kind of hard-restart' mentioned at CodeBase64[^5] (by Shrydar, and
 Lft is involved here too), they call it 'Bottle', and it's a totally different
 cycle-exact code approach. It is able to reset the rate-counter in the timeframe
 of about 10 rasterlines (less than 1ms) instead of a 20ms frame, by utilizing
@@ -1344,13 +1355,13 @@ value $FF and an Attack is triggered. This is used to bring the envelope back
 to $00 fast in this 'Bottle' approach.
 Only time will tell how soon this restart-method gets implemented in players...
 
-[^3]: https://csdb.dk/release/?id=260718
+[^4]: https://csdb.dk/release/?id=260718
 
-[^4]: https://codebase64.net/doku.php?id=base:a_new_kind_of_hard-restart
+[^5]: https://codebase64.net/doku.php?id=base:a_new_kind_of_hard-restart
 
 ## Sound Design hints & tips
 
-_Hermit's comments extracted from CSDb discussion[^5]_
+_Hermit's comments extracted from CSDb discussion[^6]_
 
 Now, I'll start by some accumulated experiences I had since I started to make
 C64 music...
@@ -1649,5 +1660,5 @@ This is also usable to simulate filter-cutoff automation in techno-like tunes,
 if there are no pattern-effects for that...
 
 
-[^5]: https://csdb.dk/forums/index.php?roomid=14&topicid=97576
+[^6]: https://csdb.dk/forums/index.php?roomid=14&topicid=97576
 
