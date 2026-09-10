@@ -151,7 +151,18 @@ Most registers are write-only and you can't read them back, but there is also a
 little feedback from SID towards the C64 in the form of read-only registers, not
 to mention bit-fading which makes tricks like Hein's `ROR $D400,X` possible.
 
-__TODO__: This ROR trick is never explained in this document. Also, needs reference link.
+```asm
+    ; excerpt from A_Jellyfish.sid by Holt_Hein
+    sta $d400,x
+    lda !$0088,y
+    ldy $21
+lp  lsr
+    ; this insn doesn't actually read the SID register (it's write only)
+    ; but relies on the value still being on the internal data bus
+    ror $d400,x
+    dey
+    bpl lp
+```
 
 Internally the SID chip consists of 3 digitally controlled oscillators with
 analog outputs which are mixed together to the analog AUDIO OUT pin of the chip.
