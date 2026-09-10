@@ -536,6 +536,13 @@ accumulator.
       /|  /|  /|  /|
      / | / | / | / |
     /  |/  |/  |/  |
+
+
+                        3 2 2 2 1 1 1 1 1 1 1 1 1 1
+      Accumulator bits: 2 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+                        | | | | | | | | | | | |
+      Waveform bits:    1 1 9 8 7 6 5 4 3 2 1 0
+                        1 0
 ```
 
 Pulse/square-waveform is derived by comparing the pulsewidth/duty-cycle
@@ -544,10 +551,21 @@ and connecting all output-bits to 1 (Vcc) when it's greater, and to 0 (GND)
 when it's smaller. A pulsewidth of 2047 results in a square waveform.
 
 ```
-    +--+   +--+   +--+   +--+
-    |  |   |  |   |  |   |  |
-    |  |   |  |   |  |   |  |
-   -+  +---+  +---+  +---+  +--
+     +--+   +--+   +--+   +--+
+     |  |   |  |   |  |   |  |
+     |  |   |  |   |  |   |  |
+    -+  +---+  +---+  +---+  +--
+
+
+                        3 2 2 2 1 1 1 1 1 1 1 1 1 1
+      Accumulator bits: 2 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+                        | | | | | | | | | | | |
+               PW->CMP<-+-+-+-+-+-+-+-+-+-+-+-+
+                    |
+                    +---+-+-+-+-+-+-+-+-+-+-+-+
+                        | | | | | | | | | | | |
+      Waveform bits:    1 1 9 8 7 6 5 4 3 2 1 0
+                        1 0
 ```
 
 Triangle waveform is made from the phase-accumulator (sawtooth) by XOR-ing all
@@ -561,6 +579,18 @@ sawtooth wave. The lowest bit is always 0.
       /\    /\    /\    /\
      /  \  /  \  /  \  /  \
     /    \/    \/    \/    \
+
+
+                        +-----------------------------------------------+
+                        |                                               |
+                        3 2 2 2 1 1 1 1 1 1 1 1 1 1                     |
+      Accumulator bits: 2 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 |
+                          | | | | | | | | | | |                         |
+                          +-+-+-+-+-+-+-+-+-+-+-XOR<------XOR<----------+
+                          | | | | | | | | | | |            |
+      Waveform bits:      1 1 9 8 7 6 5 4 3 2 1            +--AND--RingMod
+                          1 0                                  |
+                                                               +---!MSB(v-1)
 ```
 
 The ring-modulation for the triangle wave is achieved by enhancing the above-mentioned
@@ -578,12 +608,17 @@ There are so-called 'taps' on carefully selected places, bit 22 and 17 of the LF
 that are XOR-ed and that value is fed back to the LSB.
 
 ```
+        /\            /\
+     /\/  \    /\/\  /  \/\
+    /      \/\/    \/      \_/
+
+
                      reset  +--------------------------------------------+
                        |    |                                            |
                 test--OR-->XOR<--+                                       |
                        |         |                                       |
                      3 2 2 2 1 1 1 1 1 1 1 1 1 1                         |
-      Register bits: 2 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 <---+
+          LFSR bits: 2 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 <---+
                            |   |       |     |   |       |     |   |
       Waveform bits:       1   1       9     8   7       6     5   4
                            1   0
