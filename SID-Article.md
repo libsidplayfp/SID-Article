@@ -515,7 +515,15 @@ count up, so at the C64 clock frequency this happens 17 times per second. So,
 17Hz is the lowest sound we can make. Adding 65535, the maximal value needs 256
 clock steps to reach the top, so the highest the pitch can be is 3849 Hz.
 
-__TODO__: This would prob need a diagram.
+```
+                                        1 1 1 1 1 1
+             Freq bits:                 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+                                        | | | | | | | | | | | | | | | |
+                        +-+-+-+-+-Carry + + + + + + + + + + + + + + + + <- Clock
+                        | | | | | | | | | | | | | | | | | | | | | | | |
+                        3 2 2 2 1 1 1 1 1 1 1 1 1 1
+      Accumulator bits: 2 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+```
 
 Beside setting the pitch we have some more control over the phase-accumulators,
 they can be zeroed (reset) by:
