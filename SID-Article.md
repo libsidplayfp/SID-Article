@@ -274,7 +274,35 @@ neighboring channel's oscillator is in the 2nd half of its period. This creates
 a richer spectrum and very interesting effects, including formant-like sounds,
 all without filters.
 
-__TODO__: Needs a diagram to explain
+For example, if both the modulator and modulated channels have the same frequency,
+their accumulator's MSBs are equal at every cycle and as a result the triangle bits
+are always getting inverted:
+
+```
+        MSB | 0  | 1  | 0  | 1  | 0  | 1  | 0  | 1  |
+
+                      *         *         *         *
+                    * *       * *       * *       * *
+    Ch. 1         *   *     *   *     *   *     *   *
+    Saw         *     *   *     *   *     *   *     *
+              *       * *       * *       * *       *
+            *         *         *         *         *
+
+                 *         *         *         *
+                * *       * *       * *       * *
+    Ch. 2      *   *     *   *     *   *     *   *
+    Tri       *     *   *     *   *     *   *     *
+             *       * *       * *       * *       *
+            *         *         *         *         *
+
+
+            *         *         *         *         *
+              *       * *       * *       * *       *
+    Ch. 2       *     *   *     *   *     *   *     *
+    Tri+          *   *     *   *     *   *     *   *
+    Ring            * *       * *       * *       * *
+                      *         *         *         *
+```
 
 Channel-synchronization, on the other hand, resets the oscillator whenever a
 neighboring oscillator enters the 2nd half of its period. This also creates
@@ -517,9 +545,14 @@ clock steps to reach the top, so the highest the pitch can be is 3849 Hz.
 
 ```
                                         1 1 1 1 1 1
-             Freq bits:                 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+                             Freq bits: 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
                                         | | | | | | | | | | | | | | | |
-                        +-+-+-+-+-Carry + + + + + + + + + + + + + + + + <- Clock
+                                   +----+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                                   |   +---Clock
+                                   v   |
+                    +------------> Adder >--------------------------------+
+                    |                                                     |
+                    +---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+---+
                         | | | | | | | | | | | | | | | | | | | | | | | |
                         3 2 2 2 1 1 1 1 1 1 1 1 1 1
       Accumulator bits: 2 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
@@ -541,9 +574,11 @@ Sawtooth is the simplest one, it's simply the upper 12 bits of the phase-
 accumulator.
 
 ```
-      /|  /|  /|  /|
-     / | / | / | / |
-    /  |/  |/  |/  |
+            *       *       *       *
+          * *     * *     * *     * *
+        *   *   *   *   *   *   *   *
+      *     * *     * *     * *     *
+    *       *       *       *       *
 
 
                         3 2 2 2 1 1 1 1 1 1 1 1 1 1
@@ -556,13 +591,14 @@ accumulator.
 Pulse/square-waveform is derived by comparing the pulsewidth/duty-cycle
 registers (value 0..4095) to the current top 12 bits of the phase-accumulator,
 and connecting all output-bits to 1 (Vcc) when it's greater, and to 0 (GND)
-when it's smaller. A pulsewidth of 2047 results in a square waveform.
+when it's smaller. A pulsewidth of 2048 results in a perfect square waveform.
 
 ```
-     +--+   +--+   +--+   +--+
-     |  |   |  |   |  |   |  |
-     |  |   |  |   |  |   |  |
-    -+  +---+  +---+  +---+  +--
+        *****   *****   *****   *****
+        *   *   *   *   *   *   *   *
+        *   *   *   *   *   *   *   *
+        *   *   *   *   *   *   *   *
+    *****   *****   *****   *****   *
 
 
                         3 2 2 2 1 1 1 1 1 1 1 1 1 1
@@ -584,9 +620,11 @@ form of this to ensure that the output has the same amplitude as that of a
 sawtooth wave. The lowest bit is always 0.
 
 ```
-      /\    /\    /\    /\
-     /  \  /  \  /  \  /  \
-    /    \/    \/    \/    \
+        *       *       *       *
+       * *     * *     * *     * *
+      *   *   *   *   *   *   *   *
+     *     * *     * *     * *     *
+    *       *       *       *       *
 
 
                         +-----------------------------------------------+
@@ -616,9 +654,11 @@ There are so-called 'taps' on carefully selected places, bit 22 and 17 of the LF
 that are XOR-ed and that value is fed back to the LSB.
 
 ```
-        /\            /\
-     /\/  \    /\/\  /  \/\
-    /      \/\/    \/      \_/
+             *      *    *        *
+         *       *   *    *     *
+      * *     *   *     *  * *   *
+     * *  * *   *  *   *    *  *
+    *      *   *      *       *     *
 
 
                      reset  +--------------------------------------------+
